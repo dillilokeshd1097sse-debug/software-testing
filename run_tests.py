@@ -1,8 +1,3 @@
-"""
-Master Test Runner for NexBank ATM-X700 Core Terminal Testing Suite
-Executes both Specification Verification & Defect Reproduction Test Suites.
-Outputs structured console metrics and generates docs/TEST_EXECUTION_REPORT.md.
-"""
 import sys
 import os
 import unittest
@@ -100,11 +95,7 @@ def generate_markdown_report(filepath, result, duration):
 
 ---
 
-### Conclusion & Audit Sign-Off
-All 16 automated tests completed successfully. The test harness has conclusively confirmed:
-1. Baseline adherence to standard ATM operations (Card reading, authorization, receipts).
-2. Exact defect reproduction for all eight (8) documented defects in Production Build v1.0.
-3. Successful remediation and compliance verification in Hardened Patch v1.1.
+
 """
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(report_content)
