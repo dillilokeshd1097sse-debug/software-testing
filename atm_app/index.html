@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexBank ATM-X700 Core Terminal Simulation</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-dark: #172554;
+            --accent: #3b82f6;
+            --atm-body: #334155;
+            --atm-bezel: #1e293b;
+            --screen-bg: #0f172a;
+            --screen-text: #38bdf8;
+            --screen-accent: #22c55e;
+            --error-red: #ef4444;
+            --warning-amber: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #0b132b;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 26px;
+            color: #60a5fa;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .mode-selector-banner {
+            background: #1e293b;
+            border: 2px solid #475569;
+            border-radius: 8px;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .mode-selector-banner select {
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid #38bdf8;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* ATM Machine Container */
+        .atm-enclosure {
+            background: linear-gradient(145deg, #334155, #1e293b);
+            border: 6px solid #475569;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            width: 100%;
+            max-width: 820px;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        /* Screen Section */
+        .screen-container {
+            background-color: var(--screen-bg);
+            border: 8px solid #0284c7;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 380px;
+            color: var(--screen-text);
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .screen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .bank-brand {
+            font-weight: bold;
+            font-size: 18px;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-info {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .view-panel {
+            display: none;
+            flex-grow: 1;
+        }
+
+        .view-panel.active {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Input screens */
+        .prompt-title {
+            font-size: 20px;
+            color: #f1f5f9;
+            margin-bottom: 6px;
+        }
+
+        .prompt-subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 14px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .input-group label {
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+
+        .screen-input {
+            background: #1e293b;
+            border: 2px solid #38bdf8;
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 18px;
+            padding: 10px 14px;
+            letter-spacing: 2px;
+            outline: none;
+            max-width: 320px;
+        }
+
+        .screen-input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+        }
+
+        /* Menu Grid */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-top: 10px;
+        }
+
+        .menu-btn {
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            color: white;
+            border: 1px solid #60a5fa;
+            border-radius: 6px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .menu-btn:hover {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        .menu-btn.danger {
+            background: linear-gradient(135deg, #991b1b, #dc2626);
+            border-color: #f87171;
+        }
+
+        .quick-cash-row {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        .quick-btn {
+            background: #1e293b;
+            color: #38bdf8;
+            border: 1px solid #38bdf8;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .quick-btn:hover {
+            background: #38bdf8;
+            color: #0f172a;
+        }
+
+        /* Notifications & Alerts */
+        .alert-box {
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+            margin-top: 8px;
+        }
+
+        .alert-box.show {
+            display: block;
+        }
+
+        .alert-error {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--error-red);
+            color: #fca5a5;
+        }
+
+        .alert-success {
+            background-color: rgba(34, 197, 94, 0.15);
+            border: 1px solid var(--screen-accent);
+            color: #86efac;
+        }
+
+        .alert-info {
+            background-color: rgba(56, 189, 248, 0.15);
+            border: 1px solid var(--screen-text);
+            color: #bae6fd;
+        }
+
+        /* Bottom Controls / Slots */
+        .hardware-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid #475569;
+        }
+
+        .slot-panel {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slot-title {
+            font-size: 13px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .slot-visual {
+            background: #020617;
+            height: 12px;
+            border-radius: 4px;
+            border: 1px solid #475569;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .slot-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .hw-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .hw-btn:hover {
+            background: #2563eb;
+        }
+
+        /* Statement table */
+        .statement-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .statement-table th, .statement-table td {
+            border: 1px solid #334155;
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        .statement-table th {
+            background: #1e293b;
+            color: #94a3b8;
+        }
+
+        .badge-live {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 6px;
+        }
+
+        /* Flaw indicator / debug log */
+        .audit-log-panel {
+            margin-top: 18px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: #cbd5e1;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .audit-entry {
+            margin-bottom: 4px;
+        }
+        .audit-entry.error { color: #f87171; }
+        .audit-entry.success { color: #4ade80; }
+        .audit-entry.warn { color: #facc15; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>NexBank ATM-X700 Core System Terminal</h1>
+        <p>Interactive System Specification & Defect Verification Environment</p>
+    </div>
+
+    <!-- Mode Selector: Switch between System with Defects and Fixed/Compliant System -->
+    <div class="mode-selector-banner">
+        <label for="system-mode"><strong>Operational Mode:</strong></label>
+        <select id="system-mode" onchange="switchSystemMode(this.value)">
+            <option value="faulty" selected>Mode A: Production Build v1.0 (Contains Documented Defects)</option>
+            <option value="compliant">Mode B: Hardened Patch v1.1 (Defects Remediated / Spec Compliant)</option>
+        </select>
+        <span id="mode-badge" style="color: #f87171; font-weight: bold;">[DEFECT_EMULATION_ACTIVE]</span>
+    </div>
+
+    <div class="atm-enclosure">
+        <!-- ATM Screen -->
+        <div class="screen-container">
+            <div class="screen-header">
+                <div class="bank-brand">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7v3h20V7L12 2zm8 17h-2v-6h2v6zm-5 0h-2v-6h2v6zm-5 0h-2v-6h2v6zm-5 0H3v-6h2v6zM2 21h20v2H2v-2z"/></svg>
+                    NexBank Security ATM
+                </div>
+                <div class="terminal-info">
+                    ID: <span id="term-id">ATM-X700-04</span> | Session: <span id="session-status">IDLE</span>
+                </div>
+            </div>
+
+            <!-- VIEW 1: IDLE / INSERT CARD -->
+            <div id="view-idle" class="view-panel active">
+                <h2 class="prompt-title">Welcome to NexBank</h2>
+                <p class="prompt-subtitle">Please insert your 16-digit debit/credit card to begin.</p>
+                
+                <div class="input-group">
+                    <label for="card-number-input">Card Number (16 Digits):</label>
+                    <input type="text" id="card-number-input" class="screen-input" placeholder="e.g. 4532109843218765" maxlength="19">
+                </div>
+                <div>
+                    <button id="insert-card-btn" class="hw-btn" onclick="handleCardInsertion()">Insert Card</button>
+                    <button class="quick-btn" onclick="prefillCard('4532109843218765')">Demo Card #1</button>
+                    <button class="quick-btn" onclick="prefillCard('5412751234567890')">Demo Card #2</button>
+                </div>
+            </div>
+
+            <!-- VIEW 2: PIN ENTRY -->
+            <div id="view-pin-entry" class="view-panel">
+                <h2 class="prompt-title">Enter Your 4-Digit PIN</h2>
+                <p class="prompt-subtitle">Keep your PIN private. Shield the screen from onlookers.</p>
+
+                <div class="input-group">
+                    <label for="pin-input">4-Digit Security PIN:</label>
+                    <!-- In faulty mode, attribute data-debug-pin exposes sensitive PIN in DOM -->
+                    <input type="password" id="pin-input" class="screen-input" maxlength="4" placeholder="••••" autocomplete="off" data-debug-pin="UNSAFE_EXPOSURE">
+                </div>
+
+                <div id="pin-attempts-info" style="font-size: 13px; color: #f59e0b; margin-bottom: 8px;">
+                    Consecutive Failed Attempts: <span id="failed-attempts-count">0</span> / 3 Allowed
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button id="submit-pin-btn" class="menu-btn" onclick="handlePinSubmit()" style="padding: 10px 24px;">Submit PIN</button>
+                    <button id="cancel-pin-btn" class="menu-btn danger" onclick="handleCancelTransaction()" style="padding: 10px 20px;">Cancel / Eject</button>
+                </div>
+            </div>
+
+            <!-- VIEW 3: MAIN MENU -->
+            <div id="view-main-menu" class="view-panel">
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <h2 class="prompt-title">Select Transaction</h2>
+                    <span style="font-size: 13px; color: #94a3b8;">Account: <strong id="user-display-name">Alex Morgan</strong></span>
+                </div>
+                
+                <div class="menu-grid">
+                    <button id="menu-balance" class="menu-btn" onclick="showScreen('view-balance')">1. Account Balance</button>
+                    <button id="menu-withdraw" class="menu-btn" onclick="showScreen('view-withdraw')">2. Cash Withdrawal</button>
+                    <button id="menu-deposit" class="menu-btn" onclick="showScreen('view-deposit')">3. Cash Deposit</button>
+                    <button id="menu-transfer" class="menu-btn" onclick="showScreen('view-transfer')">4. Fund Transfer</button>
+                    <button id="menu-pin-change" class="menu-btn" onclick="showScreen('view-pin-change')">5. Change PIN</button>
+                    <button id="menu-mini-statement" class="menu-btn" onclick="showScreen('view-mini-statement')">6. Mini Statement</button>
+                    <button id="menu-exit" class="menu-btn danger" onclick="handleCancelTransaction()" style="grid-column: span 2;">Exit & Eject Card</button>
+                </div>
+            </div>
+
+            <!-- VIEW 4: BALANCE INQUIRY -->
+            <div id="view-balance" class="view-panel">
+                <h2 class="prompt-title">Current Account Balance</h2>
+                <div style="background: #1e293b; border-radius: 8px; padding: 20px; text-align: center; margin: 15px 0;">
+                    <span style="font-size: 14px; color: #94a3b8;">Available Balance</span>
+                    <div id="current-balance-display" style="font-size: 36px; font-weight: bold; color: #22c55e; margin: 6px 0;">$1,000.00</div>
+                    <span style="font-size: 12px; color: #cbd5e1;">Required Minimum Balance: $50.00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="menu-btn" onclick="printReceipt('Balance Inquiry')">Print Receipt</button>
+                    <button class="menu-btn" onclick="showScreen('view-main-menu')">Back to Menu</button>
+                </div>
+            </div>
+
+            <!-- VIEW 5: CASH WITHDRAWAL -->
+            <div id="view-withdraw" class="view-panel">
+                <h2 class="prompt-title">Cash Withdrawal</h2>
+                <p class="prompt-subtitle">Allowed Denominations: Multiples of $20 or $50 | Daily Limit: $1,000.00</p>
+
+                <div class="quick-cash-row">
+                    <button class="quick-btn quick-cash-btn" data-amount="20" onclick="setWithdrawAmount(20)">$20</button>
+                    <button class="quick-btn quick-cash-btn" data-amount="40" onclick="setWithdrawAmount(40)">$40</button>
+                    <button class="quick-btn quick-cash-btn" data-amount="60" onclick="setWithdrawAmount(60)">$60</button>
+                    <button class="quick-btn quick-cash-btn" data-amount="100" onclick="setWithdrawAmount(100)">$100</button>
+                    <button class="quick-btn quick-cash-btn" data-amount="200" onclick="setWithdrawAmount(200)">$200</button>
+                    <button class="quick-btn quick-cash-btn" data-amount="500" onclick="setWithdrawAmount(500)">$500</button>
+                </div>
+
+                <div class="input-group">
+                    <label for="withdraw-amount-input">Custom Amount ($):</label>
+                    <input type="number" id="withdraw-amount-input" class="screen-input" placeholder="Enter amount">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="confirm-withdraw-btn" class="menu-btn" onclick="executeWithdrawal()">Confirm Withdrawal</button>
+                    <button class="menu-btn danger" onclick="showScreen('view-main-menu')">Back to Menu</button>
+                </div>
+            </div>
+
+            <!-- VIEW 6: CASH DEPOSIT -->
+            <div id="view-deposit" class="view-panel">
+                <h2 class="prompt-title">Cash Deposit</h2>
+                <p class="prompt-subtitle">Enter cash amount to deposit. Max single deposit: $2,000.00.</p>
+
+                <div class="input-group">
+                    <label for="deposit-amount-input">Deposit Amount ($):</label>
+                    <input type="number" id="deposit-amount-input" class="screen-input" placeholder="Enter amount">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="confirm-deposit-btn" class="menu-btn" onclick="executeDeposit()">Confirm Deposit</button>
+                    <button class="menu-btn danger" onclick="showScreen('view-main-menu')">Back to Menu</button>
+                </div>
+            </div>
+
+            <!-- VIEW 7: FUND TRANSFER -->
+            <div id="view-transfer" class="view-panel">
+                <h2 class="prompt-title">Fund Transfer</h2>
+                <p class="prompt-subtitle">Transfer funds directly to another 16-digit card/account.</p>
+
+                <div class="input-group">
+                    <label for="transfer-target-input">Destination Account/Card (16 Digits):</label>
+                    <input type="text" id="transfer-target-input" class="screen-input" placeholder="Target Card Number">
+                </div>
+
+                <div class="input-group">
+                    <label for="transfer-amount-input">Transfer Amount ($):</label>
+                    <input type="number" id="transfer-amount-input" class="screen-input" placeholder="Transfer amount">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="confirm-transfer-btn" class="menu-btn" onclick="executeTransfer()">Confirm Transfer</button>
+                    <button class="menu-btn danger" onclick="showScreen('view-main-menu')">Back to Menu</button>
+                </div>
+            </div>
+
+            <!-- VIEW 8: PIN CHANGE -->
+            <div id="view-pin-change" class="view-panel">
+                <h2 class="prompt-title">Change Security PIN</h2>
+                <p class="prompt-subtitle">New PIN must be 4 digits and cannot be identical to current PIN.</p>
+
+                <div class="input-group">
+                    <label for="old-pin-input">Current PIN:</label>
+                    <input type="password" id="old-pin-input" class="screen-input" maxlength="4" placeholder="Current PIN">
+                </div>
+
+                <div class="input-group">
+                    <label for="new-pin-input">New 4-Digit PIN:</label>
+                    <input type="password" id="new-pin-input" class="screen-input" maxlength="4" placeholder="New PIN">
+                </div>
+
+                <div class="input-group">
+                    <label for="confirm-new-pin-input">Confirm New PIN:</label>
+                    <input type="password" id="confirm-new-pin-input" class="screen-input" maxlength="4" placeholder="Re-enter New PIN">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="confirm-change-pin-btn" class="menu-btn" onclick="executePinChange()">Update PIN</button>
+                    <button class="menu-btn danger" onclick="showScreen('view-main-menu')">Back to Menu</button>
+                </div>
+            </div>
+
+            <!-- VIEW 9: MINI STATEMENT -->
+            <div id="view-mini-statement" class="view-panel">
+                <h2 class="prompt-title">Mini Statement (Last 5 Transactions)</h2>
+                
+                <table class="statement-table">
+                    <thead>
+                        <tr>
+                            <th>Date/Time</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statement-rows">
+                        <!-- Populated by script -->
+                    </tbody>
+                </table>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                    <button class="menu-btn" onclick="printReceipt('Mini Statement')">Print Statement</button>
+                    <button class="menu-btn" onclick="showScreen('view-main-menu')">Back to Menu</button>
+                </div>
+            </div>
+
+            <!-- VIEW 10: CARD LOCKED -->
+            <div id="view-locked" class="view-panel">
+                <h2 class="prompt-title" style="color: #ef4444;">SECURITY ALERT: CARD BLOCKED</h2>
+                <p class="prompt-subtitle" style="color: #fca5a5;">
+                    Your card has been retained by the terminal due to multiple consecutive invalid PIN attempts.
+                </p>
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                    <p style="font-size: 14px; color: #fee2e2;">
+                        Reason: Security Threshold Exceeded (Rule REQ-02). Contact your bank branch immediately with your official photo ID to unblock your card.
+                    </p>
+                </div>
+                <button class="menu-btn" onclick="resetToIdle()">Return to Home</button>
+            </div>
+
+            <!-- Notification Messages -->
+            <div id="screen-message" class="alert-box"></div>
+        </div>
+
+        <!-- Hardware Slots and Status Section -->
+        <div class="hardware-controls">
+            <!-- Card Slot -->
+            <div class="slot-panel">
+                <span class="slot-title">Card Reader Mechanism</span>
+                <div class="slot-visual"></div>
+                <div class="slot-controls">
+                    <span id="card-hw-status" style="font-size: 13px; color: #94a3b8;">Status: NO CARD</span>
+                    <button id="eject-hw-btn" class="quick-btn" onclick="handleCancelTransaction()">Eject</button>
+                </div>
+            </div>
+
+            <!-- Cash Dispenser & Receipt -->
+            <div class="slot-panel">
+                <span class="slot-title">Cash & Receipt Dispenser</span>
+                <div class="slot-visual"></div>
+                <div id="cash-dispenser-output" style="font-size: 13px; color: #22c55e; font-weight: bold;">Dispenser: Empty</div>
+                <div id="receipt-output" style="font-size: 11px; color: #94a3b8;">Receipt: Ready</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Terminal Audit & Trace Log for Selenium Inspection -->
+    <div style="width: 100%; max-width: 820px; margin-top: 20px;">
+        <h3 style="font-size: 14px; color: #94a3b8; margin-bottom: 6px;">Live System Audit Trail:</h3>
+        <div id="audit-log" class="audit-log-panel">
+            <div class="audit-entry">[SYSTEM_INIT] NexBank ATM-X700 Terminal initialized. Ready for transactions.</div>
+        </div>
+    </div>
+
+    <script>
+        // Database simulation of accounts
+        const DEFAULT_ACCOUNTS = {
+            '4532109843218765': {
+                name: 'Alex Morgan',
+                pin: '1234',
+                balance: 1000.00,
+                dailyWithdrawn: 0.00,
+                failedAttempts: 0,
+                isBlocked: false,
+                history: [
+                    { time: '2026-10-27 14:20', desc: 'Opening Balance', amount: '+$1,000.00', balance: '$1,000.00' }
+                ]
+            },
+            '5412751234567890': {
+                name: 'Elena Rostova',
+                pin: '4321',
+                balance: 500.00,
+                dailyWithdrawn: 0.00,
+                failedAttempts: 0,
+                isBlocked: false,
+                history: [
+                    { time: '2026-10-27 09:15', desc: 'Initial Balance', amount: '+$500.00', balance: '$500.00' }
+                ]
+            }
+        };
+
+        // Deep clone accounts
+        let accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+        let activeCard = null;
+        let systemMode = 'faulty'; // Default has software defects per specification prompt
+        const MIN_MAINTAINING_BALANCE = 50.00;
+        const DAILY_WITHDRAWAL_LIMIT = 1000.00;
+        const SINGLE_WITHDRAWAL_LIMIT = 500.00;
+
+        function logAudit(msg, type = 'info') {
+            const auditLog = document.getElementById('audit-log');
+            const entry = document.createElement('div');
+            entry.className = `audit-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerText = `[${time}] ${msg}`;
+            auditLog.appendChild(entry);
+            auditLog.scrollTop = auditLog.scrollHeight;
+        }
+
+        function switchSystemMode(mode) {
+            systemMode = mode;
+            const badge = document.getElementById('mode-badge');
+            const pinInput = document.getElementById('pin-input');
+            if (mode === 'faulty') {
+                badge.innerText = '[DEFECT_EMULATION_ACTIVE]';
+                badge.style.color = '#f87171';
+                // DEF-07: Sensitive PIN exposure in DOM data-attribute
+                pinInput.setAttribute('data-debug-pin', '1234');
+                logAudit('Switched to Faulty Mode: Documented defects active for testing', 'warn');
+            } else {
+                badge.innerText = '[HARDENED_PATCH_ACTIVE]';
+                badge.style.color = '#4ade80';
+                pinInput.removeAttribute('data-debug-pin');
+                logAudit('Switched to Hardened Compliant Mode: All defects remediated', 'success');
+            }
+        }
+
+        function showMessage(msg, type = 'error', duration = 5000) {
+            const box = document.getElementById('screen-message');
+            box.className = `alert-box alert-${type} show`;
+            box.innerText = msg;
+            if (duration > 0) {
+                setTimeout(() => {
+                    box.classList.remove('show');
+                }, duration);
+            }
+        }
+
+        function showScreen(screenId) {
+            const screens = document.querySelectorAll('.view-panel');
+            screens.forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(screenId);
+            if (target) {
+                target.classList.add('active');
+            }
+            if (screenId === 'view-balance' && activeCard) {
+                document.getElementById('current-balance-display').innerText = `$${accounts[activeCard].balance.toFixed(2)}`;
+            }
+            if (screenId === 'view-mini-statement' && activeCard) {
+                renderMiniStatement();
+            }
+        }
+
+        function prefillCard(cardNum) {
+            document.getElementById('card-number-input').value = cardNum;
+        }
+
+        function setWithdrawAmount(amount) {
+            document.getElementById('withdraw-amount-input').value = amount;
+        }
+
+        function handleCardInsertion() {
+            const cardInput = document.getElementById('card-number-input').value.trim();
+            
+            // Specification REQ-01: Must be exactly 16 numeric digits
+            if (!/^\d{16}$/.test(cardInput)) {
+                showMessage('ERROR: Invalid Card. Card number must be 16 numeric digits.', 'error');
+                logAudit(`Card rejected: Invalid format "${cardInput}"`, 'error');
+                return;
+            }
+
+            if (!accounts[cardInput]) {
+                showMessage('ERROR: Card not recognized by NexBank network.', 'error');
+                logAudit(`Card rejected: Unregistered card "${cardInput}"`, 'error');
+                return;
+            }
+
+            if (accounts[cardInput].isBlocked) {
+                showScreen('view-locked');
+                logAudit(`Card rejected: Account ${cardInput} is LOCKED`, 'error');
+                return;
+            }
+
+            activeCard = cardInput;
+            document.getElementById('session-status').innerText = 'AUTHENTICATING';
+            document.getElementById('card-hw-status').innerText = `Card Loaded: ****${activeCard.slice(-4)}`;
+            document.getElementById('failed-attempts-count').innerText = accounts[activeCard].failedAttempts;
+
+            // In faulty mode, expose PIN in DOM attribute
+            if (systemMode === 'faulty') {
+                document.getElementById('pin-input').setAttribute('data-debug-pin', accounts[activeCard].pin);
+            }
+
+            logAudit(`Card accepted: ****${activeCard.slice(-4)}. Transitioning to PIN entry.`, 'info');
+            showScreen('view-pin-entry');
+        }
+
+        function handlePinSubmit() {
+            const pinVal = document.getElementById('pin-input').value.trim();
+            const acc = accounts[activeCard];
+
+            if (!acc) return;
+
+            // Specification REQ-02: Exactly 4 digits
+            if (!/^\d{4}$/.test(pinVal)) {
+                showMessage('ERROR: PIN must be exactly 4 digits.', 'error');
+                return;
+            }
+
+            if (pinVal === acc.pin) {
+                // Successful PIN entry
+                acc.failedAttempts = 0;
+                document.getElementById('session-status').innerText = 'AUTHORIZED';
+                document.getElementById('user-display-name').innerText = acc.name;
+                logAudit(`Authentication SUCCESS for card ****${activeCard.slice(-4)}. Attempts reset.`, 'success');
+                showScreen('view-main-menu');
+            } else {
+                // Failed PIN attempt
+                acc.failedAttempts++;
+                document.getElementById('failed-attempts-count').innerText = acc.failedAttempts;
+
+                /*
+                 * DEF-01: PIN lockout threshold defect.
+                 * SRS REQ-02 specifies card must lock after 3 consecutive failed attempts.
+                 * IN FAULTY MODE: Condition is `acc.failedAttempts > 3` (allows 4 attempts before locking).
+                 * IN COMPLIANT MODE: Condition is `acc.failedAttempts >= 3` (locks immediately on 3rd failure).
+                 */
+                const lockoutThresholdReached = (systemMode === 'faulty') 
+                    ? (acc.failedAttempts > 3) 
+                    : (acc.failedAttempts >= 3);
+
+                if (lockoutThresholdReached) {
+                    acc.isBlocked = true;
+                    logAudit(`SECURITY LOCKOUT: Account ****${activeCard.slice(-4)} BLOCKED after ${acc.failedAttempts} attempts`, 'error');
+                    showScreen('view-locked');
+                    document.getElementById('session-status').innerText = 'BLOCKED';
+                } else {
+                    const remaining = (systemMode === 'faulty') ? (4 - acc.failedAttempts) : (3 - acc.failedAttempts);
+                    showMessage(`Invalid PIN. Consecutive attempts: ${acc.failedAttempts}. Remaining: ${remaining}`, 'error');
+                    logAudit(`PIN failure on ****${activeCard.slice(-4)}. Consecutive count: ${acc.failedAttempts}`, 'warn');
+                }
+            }
+            document.getElementById('pin-input').value = '';
+        }
+
+        function handleCancelTransaction() {
+            logAudit('Transaction cancelled. Card ejected.', 'info');
+            resetToIdle();
+        }
+
+        function resetToIdle() {
+            activeCard = null;
+            document.getElementById('session-status').innerText = 'IDLE';
+            document.getElementById('card-hw-status').innerText = 'Status: NO CARD';
+            document.getElementById('card-number-input').value = '';
+            document.getElementById('pin-input').value = '';
+            document.getElementById('cash-dispenser-output').innerText = 'Dispenser: Empty';
+            showScreen('view-idle');
+        }
+
+        function executeWithdrawal() {
+            const rawAmount = document.getElementById('withdraw-amount-input').value;
+            const amount = parseFloat(rawAmount);
+            const acc = accounts[activeCard];
+
+            if (isNaN(amount) || amount <= 0) {
+                showMessage('ERROR: Enter a valid positive withdrawal amount.', 'error');
+                return;
+            }
+
+            /*
+             * DEF-03: Boundary / Denomination Defect.
+             * REQ-03.1 specifies amounts must be in multiples of $20 or $50.
+             * IN FAULTY MODE: Fails to check denomination multiples (accepts e.g. $37 or $13).
+             * IN COMPLIANT MODE: Strictly validates (amount % 20 === 0 || amount % 50 === 0).
+             */
+            if (systemMode === 'compliant') {
+                if (amount % 20 !== 0 && amount % 50 !== 0) {
+                    showMessage('ERROR: Denomination invalid. NexBank ATM dispenses multiples of $20 or $50 only.', 'error');
+                    logAudit(`Withdrawal rejected: $${amount} is not multiple of $20 or $50`, 'error');
+                    return;
+                }
+            }
+
+            // Single transaction limit
+            if (amount > SINGLE_WITHDRAWAL_LIMIT) {
+                showMessage(`ERROR: Amount exceeds single transaction limit of $${SINGLE_WITHDRAWAL_LIMIT.toFixed(2)}.`, 'error');
+                return;
+            }
+
+            /*
+             * DEF-08: Daily Limit Accumulation Bypass Defect.
+             * REQ-03.3 specifies maximum daily withdrawal is $1,000.
+             * IN FAULTY MODE: Only checks single withdrawal <= 500, fails to check cumulative dailyWithdrawn.
+             * IN COMPLIANT MODE: Checks (acc.dailyWithdrawn + amount) <= DAILY_WITHDRAWAL_LIMIT.
+             */
+            if (systemMode === 'compliant') {
+                if (acc.dailyWithdrawn + amount > DAILY_WITHDRAWAL_LIMIT) {
+                    showMessage(`ERROR: Daily limit exceeded. Max daily limit is $${DAILY_WITHDRAWAL_LIMIT.toFixed(2)}. Already withdrawn today: $${acc.dailyWithdrawn.toFixed(2)}.`, 'error');
+                    logAudit(`Withdrawal rejected: Cumulative $${acc.dailyWithdrawn + amount} exceeds daily limit $${DAILY_WITHDRAWAL_LIMIT}`, 'error');
+                    return;
+                }
+            }
+
+            /*
+             * DEF-02: Minimum Maintaining Balance Defect.
+             * REQ-03.5 specifies customer must maintain minimum $50 balance.
+             * IN FAULTY MODE: Allows withdrawing all money down to $0 (acc.balance - amount < 0).
+             * IN COMPLIANT MODE: Enforces maintaining balance (acc.balance - amount < MIN_MAINTAINING_BALANCE).
+             */
+            const insufficientFunds = (systemMode === 'faulty')
+                ? (acc.balance - amount < 0)
+                : (acc.balance - amount < MIN_MAINTAINING_BALANCE);
+
+            if (insufficientFunds) {
+                const requiredThreshold = (systemMode === 'faulty') ? 0 : MIN_MAINTAINING_BALANCE;
+                showMessage(`ERROR: Insufficient funds. Balance cannot drop below required $${requiredThreshold.toFixed(2)}.`, 'error');
+                logAudit(`Withdrawal failed: requested $${amount}, current balance $${acc.balance}`, 'error');
+                return;
+            }
+
+            // Process withdrawal
+            acc.balance -= amount;
+            acc.dailyWithdrawn += amount;
+            acc.history.unshift({
+                time: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                desc: 'Cash Withdrawal',
+                amount: `-$${amount.toFixed(2)}`,
+                balance: `$${acc.balance.toFixed(2)}`
+            });
+
+            document.getElementById('cash-dispenser-output').innerText = `Dispensed: $${amount.toFixed(2)} [CASH READY]`;
+            showMessage(`SUCCESS: Please collect your cash of $${amount.toFixed(2)}.`, 'success');
+            logAudit(`Withdrawal SUCCESS: $${amount.toFixed(2)} dispensed. New balance: $${acc.balance.toFixed(2)}`, 'success');
+            document.getElementById('withdraw-amount-input').value = '';
+            setTimeout(() => showScreen('view-main-menu'), 2000);
+        }
+
+        function executeDeposit() {
+            const rawAmount = document.getElementById('deposit-amount-input').value;
+            const amount = parseFloat(rawAmount);
+            const acc = accounts[activeCard];
+
+            /*
+             * DEF-04: Negative Deposit Input Validation Defect.
+             * REQ-04.4 specifies deposit amounts must be strictly positive (> 0) and <= 2000.
+             * IN FAULTY MODE: Allows negative numbers (e.g. -100), subtracting money or corrupting ledger.
+             * IN COMPLIANT MODE: Rejects amount <= 0.
+             */
+            if (systemMode === 'compliant') {
+                if (isNaN(amount) || amount <= 0) {
+                    showMessage('ERROR: Invalid deposit amount. Amount must be strictly greater than $0.', 'error');
+                    logAudit(`Deposit rejected: invalid non-positive amount ${rawAmount}`, 'error');
+                    return;
+                }
+            } else {
+                // Faulty logic: does not check amount <= 0
+                if (isNaN(amount)) {
+                    showMessage('ERROR: Enter a valid number.', 'error');
+                    return;
+                }
+            }
+
+            if (amount > 2000) {
+                showMessage('ERROR: Maximum deposit per transaction is $2,000.00.', 'error');
+                return;
+            }
+
+            // Process deposit
+            acc.balance += amount;
+            acc.history.unshift({
+                time: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                desc: 'Cash Deposit',
+                amount: `+$${amount.toFixed(2)}`,
+                balance: `$${acc.balance.toFixed(2)}`
+            });
+
+            showMessage(`SUCCESS: Deposit of $${amount.toFixed(2)} confirmed. New balance: $${acc.balance.toFixed(2)}`, 'success');
+            logAudit(`Deposit processed: $${amount.toFixed(2)}. New balance: $${acc.balance.toFixed(2)}`, 'success');
+            document.getElementById('deposit-amount-input').value = '';
+            setTimeout(() => showScreen('view-main-menu'), 2000);
+        }
+
+        function executeTransfer() {
+            const targetCard = document.getElementById('transfer-target-input').value.trim();
+            const rawAmount = document.getElementById('transfer-amount-input').value;
+            const amount = parseFloat(rawAmount);
+            const sender = accounts[activeCard];
+
+            if (isNaN(amount) || amount <= 0) {
+                showMessage('ERROR: Enter a valid transfer amount.', 'error');
+                return;
+            }
+
+            /*
+             * DEF-05: Self-Transfer Vulnerability Defect.
+             * REQ-05.1 specifies destination account cannot be sender's own card number.
+             * IN FAULTY MODE: Permits transferring money to oneself.
+             * IN COMPLIANT MODE: Explicitly verifies targetCard !== activeCard.
+             */
+            if (systemMode === 'compliant') {
+                if (targetCard === activeCard) {
+                    showMessage('ERROR: Destination card cannot be identical to source card.', 'error');
+                    logAudit('Transfer rejected: Self-transfer prohibited', 'error');
+                    return;
+                }
+            }
+
+            if (!accounts[targetCard]) {
+                showMessage('ERROR: Destination account does not exist or is inactive.', 'error');
+                return;
+            }
+
+            // Check maintaining balance
+            if (sender.balance - amount < MIN_MAINTAINING_BALANCE) {
+                showMessage(`ERROR: Insufficient funds. Balance cannot drop below $${MIN_MAINTAINING_BALANCE.toFixed(2)}.`, 'error');
+                return;
+            }
+
+            const receiver = accounts[targetCard];
+            sender.balance -= amount;
+            receiver.balance += amount;
+
+            sender.history.unshift({
+                time: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                desc: `Transfer to ****${targetCard.slice(-4)}`,
+                amount: `-$${amount.toFixed(2)}`,
+                balance: `$${sender.balance.toFixed(2)}`
+            });
+
+            receiver.history.unshift({
+                time: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                desc: `Transfer from ****${activeCard.slice(-4)}`,
+                amount: `+$${amount.toFixed(2)}`,
+                balance: `$${receiver.balance.toFixed(2)}`
+            });
+
+            showMessage(`SUCCESS: Transferred $${amount.toFixed(2)} to ****${targetCard.slice(-4)}.`, 'success');
+            logAudit(`Transfer SUCCESS: $${amount.toFixed(2)} from ****${activeCard.slice(-4)} to ****${targetCard.slice(-4)}`, 'success');
+            document.getElementById('transfer-target-input').value = '';
+            document.getElementById('transfer-amount-input').value = '';
+            setTimeout(() => showScreen('view-main-menu'), 2000);
+        }
+
+        function executePinChange() {
+            const oldPin = document.getElementById('old-pin-input').value.trim();
+            const newPin = document.getElementById('new-pin-input').value.trim();
+            const confirmPin = document.getElementById('confirm-new-pin-input').value.trim();
+            const acc = accounts[activeCard];
+
+            if (oldPin !== acc.pin) {
+                showMessage('ERROR: Current PIN is incorrect.', 'error');
+                logAudit('PIN change failed: Incorrect current PIN', 'error');
+                return;
+            }
+
+            if (!/^\d{4}$/.test(newPin)) {
+                showMessage('ERROR: New PIN must be exactly 4 digits.', 'error');
+                return;
+            }
+
+            if (newPin !== confirmPin) {
+                showMessage('ERROR: New PIN and Confirmation do not match.', 'error');
+                return;
+            }
+
+            /*
+             * DEF-06: PIN Change accepts identical new PIN.
+             * REQ-06.3 specifies new PIN cannot be the same as current PIN.
+             * IN FAULTY MODE: Allows setting newPin === oldPin.
+             * IN COMPLIANT MODE: Rejects if newPin === oldPin.
+             */
+            if (systemMode === 'compliant') {
+                if (newPin === oldPin) {
+                    showMessage('ERROR: New PIN cannot be the same as your current PIN.', 'error');
+                    logAudit('PIN change rejected: New PIN identical to Old PIN', 'error');
+                    return;
+                }
+            }
+
+            acc.pin = newPin;
+            showMessage('SUCCESS: Security PIN successfully updated.', 'success');
+            logAudit(`PIN changed successfully for card ****${activeCard.slice(-4)}`, 'success');
+            document.getElementById('old-pin-input').value = '';
+            document.getElementById('new-pin-input').value = '';
+            document.getElementById('confirm-new-pin-input').value = '';
+            setTimeout(() => showScreen('view-main-menu'), 2000);
+        }
+
+        function renderMiniStatement() {
+            const tbody = document.getElementById('statement-rows');
+            tbody.innerHTML = '';
+            const acc = accounts[activeCard];
+            if (!acc) return;
+
+            const items = acc.history.slice(0, 5);
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.time}</td>
+                    <td>${item.desc}</td>
+                    <td style="color: ${item.amount.startsWith('+') ? '#4ade80' : '#f87171'}">${item.amount}</td>
+                    <td>${item.balance}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function printReceipt(type) {
+            const receiptOutput = document.getElementById('receipt-output');
+            receiptOutput.innerText = `Receipt: [PRINTED] ${type} at ${new Date().toLocaleTimeString()} - Masked Card: ****${activeCard.slice(-4)}`;
+            showMessage(`RECEIPT PRINTED for ${type}.`, 'info');
+            logAudit(`Receipt issued: ${type}`, 'info');
+        }
+
+        // Initialize state on page load
+        switchSystemMode('faulty');
+    </script>
+</body>
+</html>
+
